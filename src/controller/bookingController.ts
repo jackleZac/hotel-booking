@@ -10,24 +10,26 @@ export const createBooking = async (
   const { userId, roomId, checkInDate, checkOutDate } = req.body;
 
   try {
+    // Check room availability for the given dates
     const [results]: any = await database.execute(
       `SELECT * FROM bookings WHERE room_id = ? 
        AND check_out_date >= ? AND check_in_date <= ?`,
       [roomId, checkInDate, checkOutDate]
     );
 
+    // If the room is already booked during the selected dates
     if (results.length > 0) {
-      res
-        .status(400)
-        .json({ error: "Room is not available for the selected dates" });
+      res.status(400).json({ error: "Room is not available for the selected dates" });
       return;
     }
 
+    // Create the booking
     const [result]: any = await database.execute(
       `INSERT INTO bookings (user_id, room_id, check_in_date, check_out_date) VALUES (?, ?, ?, ?)`,
       [userId, roomId, checkInDate, checkOutDate]
     );
 
+    // Respond with the created booking's ID
     res.status(201).json({
       message: "Booking created successfully",
       bookingId: result.insertId,
@@ -37,6 +39,7 @@ export const createBooking = async (
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 // User: Get all bookings for the logged-in user
 export const getUserBookings = async (
