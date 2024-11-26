@@ -23,7 +23,7 @@ const Room = {
 
         // Return the results as Room objects
         resolve(rooms.map(room => ({
-          id: room.room_id,
+          room_id: room.room_id,
           type: room.type,
           number: room.number,
           price: room.price,
