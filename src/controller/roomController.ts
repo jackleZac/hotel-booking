@@ -1,11 +1,29 @@
 import { Request, Response } from "express";
 import Room from "../model/Room"; // Updated import path
 
+interface AuthenticatedRequest extends Request {
+  user?: { role: string }; // Match the structure of your JWT payload
+}
+
 // Get all rooms
-export const getAllRooms = async (req: Request, res: Response): Promise<void> => {
+export const getAllRooms = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
   try {
-    const rooms = await Room.getAllRooms();
-    res.json(rooms);
+    if (req.user?.role === "admin") {
+      // Admin: Fetch all rooms
+      const rooms = await Room.getAllRooms();
+      res.json(rooms);
+    } else {
+      // User: Fetch only available rooms
+      const { check_in_date, check_out_date } = req.query;
+      console.log("Check-in Date:", check_in_date);
+      console.log("Check-out Date:", check_out_date);
+
+      const availableRooms = await Room.getAvailableRooms(check_in_date as string, check_out_date as string);
+      res.json(availableRooms);
+    }
   } catch (error) {
     console.error("Error fetching rooms:", error);
     res.status(500).json({ error: "Internal server error" });

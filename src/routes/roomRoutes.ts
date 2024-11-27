@@ -10,7 +10,7 @@ import { authenticateToken, checkAdmin } from "../middleware/authMiddleware";
 const router = Router();
 
 // Route to fetch all rooms (public)
-router.get("/", getAllRooms);
+router.get("/", authenticateToken, getAllRooms);
 
 // Route to create a new room (admin-only)
 router.post("/", authenticateToken, checkAdmin, createRoom);
