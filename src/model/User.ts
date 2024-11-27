@@ -1,6 +1,5 @@
-// src/models/User.ts
 import { ResultSetHeader, RowDataPacket } from "mysql2"; // Import ResultSetHeader for typing
-import database from "../config/database";
+import database from "../config/database"; // Updated database configuration with pooling
 
 interface User {
   user_id?: number;
@@ -10,40 +9,33 @@ interface User {
 
 const User = {
   // Find user by username
-  findByUsername: (username: string): Promise<User | null> => {
-    return new Promise((resolve, reject) => {
-      database.query(
+  findByUsername: async (username: string): Promise<User | null> => {
+    try {
+      const [results] = await database.execute<RowDataPacket[]>(
         "SELECT * FROM users WHERE username = ?",
-        [username],
-        (err, results) => {
-          if (err) return reject(err);
-
-          // Type cast results to an array of RowDataPacket, which is often used by MySQL2 for query results
-          const users = results as RowDataPacket[];
-
-          // Cast the first row (users[0]) to User type
-          const user = users[0] as User;
-
-          // Return the first user or null if not found
-          resolve(user || null);
-        }
+        [username]
       );
-    });
+
+      // Return the first user or null if not found
+      return results.length > 0 ? (results[0] as User) : null;
+    } catch (err) {
+      throw new Error("Error finding user by username: " + err);
+    }
   },
 
   // Create new user
-  createUser: (user: User): Promise<User> => {
-    return new Promise((resolve, reject) => {
-      database.query("INSERT INTO users SET ?", user, (err, results) => {
-        if (err) reject(err);
+  createUser: async (user: User): Promise<User> => {
+    try {
+      const [results] = await database.execute<ResultSetHeader>(
+        "INSERT INTO users (username, password) VALUES (?, ?)",
+        [user.username, user.password]
+      );
 
-        // Explicitly cast results to ResultSetHeader
-        const resultHeader = results as ResultSetHeader;
-
-        // Return user object with generated ID
-        resolve({ user_id: resultHeader.insertId, ...user });
-      });
-    });
+      // Return user object with generated ID
+      return { user_id: results.insertId, ...user };
+    } catch (err) {
+      throw new Error("Error creating new user: " + err);
+    }
   },
 };
 

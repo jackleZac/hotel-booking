@@ -1,11 +1,8 @@
 import { Request, Response } from "express";
-import Room from "../model/Room";
+import Room from "../model/Room"; // Updated import path
 
 // Get all rooms
-export const getAllRooms = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const getAllRooms = async (req: Request, res: Response): Promise<void> => {
   try {
     const rooms = await Room.getAllRooms();
     res.json(rooms);
@@ -16,10 +13,7 @@ export const getAllRooms = async (
 };
 
 // Create a new room
-export const createRoom = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const createRoom = async (req: Request, res: Response): Promise<void> => {
   const { type, number, price, description, imageUrl } = req.body;
 
   try {
@@ -40,10 +34,7 @@ export const createRoom = async (
 };
 
 // Update a room
-export const updateRoom = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const updateRoom = async (req: Request, res: Response): Promise<void> => {
   const roomId = parseInt(req.params.id, 10);
   const updates = req.body;
 
@@ -57,10 +48,7 @@ export const updateRoom = async (
 };
 
 // Delete a room
-export const deleteRoom = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const deleteRoom = async (req: Request, res: Response): Promise<void> => {
   const roomId = parseInt(req.params.id, 10);
 
   try {

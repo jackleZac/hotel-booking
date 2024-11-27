@@ -1,6 +1,5 @@
-// src/models/Room.ts
-import { RowDataPacket, ResultSetHeader } from 'mysql2'; // Import for MySQL2 types
-import database from "../config/database";
+import { RowDataPacket, ResultSetHeader } from 'mysql2'; // Import MySQL2 types
+import database from "../config/database"; // Updated database import to use connection pooling
 
 interface Room {
   room_id?: number;
@@ -13,66 +12,59 @@ interface Room {
 
 const Room = {
   // Get all rooms
-  getAllRooms: (): Promise<Room[]> => {
-    return new Promise((resolve, reject) => {
-      database.query("SELECT * FROM rooms", (err, results) => {
-        if (err) return reject(err);
+  getAllRooms: async (): Promise<Room[]> => {
+    try {
+      const [results] = await database.execute<RowDataPacket[]>("SELECT * FROM rooms");
 
-        // Cast results to RowDataPacket[] to access row data
-        const rooms = results as RowDataPacket[];
-
-        // Return the results as Room objects
-        resolve(rooms.map(room => ({
-          room_id: room.room_id,
-          type: room.type,
-          number: room.number,
-          price: room.price,
-          description: room.description,
-          imageUrl: room.imageUrl
-        })));
-      });
-    });
+      // Return the results as Room objects
+      return results.map(room => ({
+        room_id: room.room_id,
+        type: room.type,
+        number: room.number,
+        price: room.price,
+        description: room.description,
+        imageUrl: room.imageUrl
+      }));
+    } catch (err) {
+      throw new Error("Error retrieving rooms: " + err);
+    }
   },
 
   // Create a new room
-  createRoom: (roomData: Room): Promise<Room> => {
-    return new Promise((resolve, reject) => {
-      database.query("INSERT INTO rooms SET ?", roomData, (err, results) => {
-        if (err) return reject(err);
+  createRoom: async (roomData: Room): Promise<Room> => {
+    try {
+      const [results] = await database.execute<ResultSetHeader>(
+        "INSERT INTO rooms (type, number, price, description, imageUrl) VALUES (?, ?, ?, ?, ?)",
+        [roomData.type, roomData.number, roomData.price, roomData.description, roomData.imageUrl]
+      );
 
-        // Cast results to ResultSetHeader to access insertId
-        const resultHeader = results as ResultSetHeader;
-
-        // Return the new room object with the generated ID
-        resolve({ room_id: resultHeader.insertId, ...roomData });
-      });
-    });
+      // Return the new room object with the generated ID
+      return { room_id: results.insertId, ...roomData };
+    } catch (err) {
+      throw new Error("Error creating room: " + err);
+    }
   },
 
   // Update room details
-  updateRoom: (roomId: number, roomData: Partial<Room>): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      database.query(
+  updateRoom: async (roomId: number, roomData: Partial<Room>): Promise<void> => {
+    try {
+      await database.execute(
         "UPDATE rooms SET ? WHERE room_id = ?",
-        [roomData, roomId],
-        (err) => {
-          if (err) return reject(err);
-          resolve();
-        }
+        [roomData, roomId]
       );
-    });
+    } catch (err) {
+      throw new Error("Error updating room: " + err);
+    }
   },
 
   // Delete a room
-  deleteRoom: (roomId: number): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      database.query("DELETE FROM rooms WHERE room_id = ?", [roomId], (err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
+  deleteRoom: async (roomId: number): Promise<void> => {
+    try {
+      await database.execute("DELETE FROM rooms WHERE room_id = ?", [roomId]);
+    } catch (err) {
+      throw new Error("Error deleting room: " + err);
+    }
   },
 };
 
 export default Room;
-

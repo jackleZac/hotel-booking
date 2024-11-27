@@ -1,129 +1,66 @@
+// src/controllers/bookingController.ts
 import { Request, Response } from "express";
-import { Pool } from "mysql2/promise"; // Using promise-based API for better async/await support
-import database from "../config/database";
+import Booking from "../model/Booking";
 
-// User: Create a new booking
-export const createBooking = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const { userId, roomId, checkInDate, checkOutDate } = req.body;
-
+export const createBooking = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Check room availability for the given dates
-    const [results]: any = await database.execute(
-      `SELECT * FROM bookings WHERE room_id = ? 
-       AND check_out_date >= ? AND check_in_date <= ?`,
-      [roomId, checkInDate, checkOutDate]
-    );
-
-    // If the room is already booked during the selected dates
-    if (results.length > 0) {
-      res.status(400).json({ error: "Room is not available for the selected dates" });
-      return;
-    }
-
-    // Create the booking
-    const [result]: any = await database.execute(
-      `INSERT INTO bookings (user_id, room_id, check_in_date, check_out_date) VALUES (?, ?, ?, ?)`,
-      [userId, roomId, checkInDate, checkOutDate]
-    );
-
-    // Respond with the created booking's ID
-    res.status(201).json({
-      message: "Booking created successfully",
-      bookingId: result.insertId,
-    });
+    const bookingData = req.body;
+    const newBooking = await Booking.createBooking(bookingData);
+    res.status(201).json({ message: "Booking created successfully", booking: newBooking });
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("Error creating booking:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-
-// User: Get all bookings for the logged-in user
-export const getUserBookings = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const userId = req.params.userId;
-
+export const getUserBookings = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [results]: any = await database.execute(
-      `SELECT * FROM bookings WHERE user_id = ?`,
-      [userId]
-    );
-
-    res.json(results);
+    const userId = Number(req.params.userId);
+    const bookings = await Booking.getUserBookings(userId);
+    res.json(bookings);
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("Error fetching user bookings:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-// Admin: Get all bookings
-export const getAllBookings = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const getAllBookings = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [results]: any = await database.execute(`SELECT * FROM bookings`);
-    res.json(results);
+    const bookings = await Booking.getAllBookings();
+    res.json(bookings);
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("Error fetching all bookings:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-// Admin: Update booking details
-export const updateBooking = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const bookingId = req.params.id;
-  const { userId, roomId, checkInDate, checkOutDate } = req.body;
-
+export const updateBooking = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [result]: any = await database.execute(
-      `UPDATE bookings 
-       SET user_id = ?, room_id = ?, check_in_date = ?, check_out_date = ? 
-       WHERE id = ?`,
-      [userId, roomId, checkInDate, checkOutDate, bookingId]
-    );
-
-    if (result.affectedRows === 0) {
+    const bookingId = Number(req.params.id);
+    const bookingData = req.body;
+    const success = await Booking.updateBooking(bookingId, bookingData);
+    if (!success) {
       res.status(404).json({ error: "Booking not found" });
       return;
     }
-
-    res.status(200).json({ message: "Booking updated successfully" });
+    res.json({ message: "Booking updated successfully" });
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("Error updating booking:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-// Admin: Delete a booking
-export const deleteBooking = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const bookingId = req.params.id;
-
+export const deleteBooking = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [result]: any = await database.execute(
-      `DELETE FROM bookings WHERE id = ?`,
-      [bookingId]
-    );
-
-    if (result.affectedRows === 0) {
+    const bookingId = Number(req.params.id);
+    const success = await Booking.deleteBooking(bookingId);
+    if (!success) {
       res.status(404).json({ error: "Booking not found" });
       return;
     }
-
-    res.status(200).json({ message: "Booking deleted successfully" });
+    res.json({ message: "Booking deleted successfully" });
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("Error deleting booking:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };

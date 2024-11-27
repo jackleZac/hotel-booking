@@ -1,16 +1,13 @@
-// config/db.ts
-import mysql, { Connection } from "mysql2";
+import mysql, { Pool } from "mysql2/promise";
 
-const database: Connection = mysql.createConnection({
+const database: Pool = mysql.createPool({
   host: "localhost",
   user: "root",
   password: "",
   database: "hotel_booking",
-});
-
-database.connect((err) => {
-  if (err) throw err;
-  console.log("Connected to MySQL database.");
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 });
 
 export default database;
