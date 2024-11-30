@@ -77,8 +77,8 @@ const Booking = {
     const [result] = await database.execute<ResultSetHeader>(query, [
       bookingData.user_id,
       bookingData.room_id,
-      bookingData.check_in_date.toISOString().slice(0, 10),
-      bookingData.check_out_date.toISOString().slice(0, 10),
+      bookingData.check_in_date,
+      bookingData.check_out_date,
       bookingId,
     ]);
     return result.affectedRows > 0;
