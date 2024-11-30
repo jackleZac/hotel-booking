@@ -11,6 +11,23 @@ interface Booking {
 
 const Booking = {
   createBooking: async (bookingData: Booking): Promise<Booking> => {
+    // Check for overlapping bookings before inserting
+    const overlapCheckQuery = `
+      SELECT * FROM bookings
+      WHERE room_id = ? 
+      AND (check_in_date < ? AND check_out_date > ?)
+      `;
+    
+    const [existingBookings] = await database.query(overlapCheckQuery, [
+      bookingData.room_id,
+      bookingData.check_out_date,
+      bookingData.check_in_date,
+    ]);
+
+    if ((existingBookings as any[]).length > 0) {
+      throw new Error("Room is already booked for the selected dates.");
+    };
+
     const query = `
       INSERT INTO bookings (user_id, room_id, check_in_date, check_out_date)
       VALUES (?, ?, ?, ?)
