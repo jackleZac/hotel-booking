@@ -1,92 +1,95 @@
 import { Request, Response } from "express";
-import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import database from "../config/database"; // Updated database configuration with pooling
+import User from "../model/User";
 
-const JWT_SECRET =
-  process.env.JWT_SECRET ||
-  "e34c4e0bd8ac45fb83c3cf07c4e1f3f2e4f4c5e6f8e7e2d8c3e8d6c5f7e9e3b1"; // Use an environment variable for security
-const SALT_ROUNDS = 10; // Number of bcrypt salt rounds
+const JWT_SECRET = process.env.JWT_SECRET || "e34c4e0bd8ac45fb83c3cf07c4e1f3f2e4f4c5e6f8e7e2d8c3e8d6c5f7e9e3b1";
 
-// Register a new user
 export const register = async (req: Request, res: Response): Promise<void> => {
-  const { username, password, role = "user" } = req.body; // Default role to "user"
+  const { username, password, role = "user", email, phone_number } = req.body;
 
   try {
-    // Check if the user already exists
-    const [existingUser] = await database.execute(
-      "SELECT * FROM users WHERE username = ?",
-      [username]
-    );
-
-    if ((existingUser as any[]).length > 0) {
+    const existingUser = await User.findByUsername(username);
+    if (existingUser) {
       res.status(400).json({ error: "User already exists" });
       return;
     }
-
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-
-    // Insert the new user into the database
-    const [result]: any = await database.execute(
-      "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-      [username, hashedPassword, role]
-    );
-
-    res.status(201).json({
-      message: "User registered successfully",
-      userId: result.insertId,
-    });
+    const newUser = await User.createUser({ username, password, role, email, phone_number });
+    res.status(201).json({ message: "User registered successfully", userId: newUser.user_id });
   } catch (error) {
-    console.error("Error registering user:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-// Login an existing user
 export const login = async (req: Request, res: Response): Promise<void> => {
   const { username, password } = req.body;
+  console.log("Received data:", { username, password });
+  try {
+    const user = await User.findByUsername(username);
+    if (!user || !(await User.verifyPassword(password, user.password))) {
+      res.status(400).json({ error: "Invalid username or password" });
+      return;
+    }
+    const token = jwt.sign({ user_id: user.user_id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: "1h" });
+    res.json({ message: "Login successful", token, user });
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const updateProfile = async (req: Request, res: Response): Promise<void> => {
+  const { user_id, username, password, email, phone_number } = req.body;
 
   try {
-    // Find the user in the database
-    const [users] = await database.execute(
-      "SELECT * FROM users WHERE username = ?",
-      [username]
-    );
+    // Update user profile with the provided data
+    const success = await User.updateUserProfile(user_id, { username, password, email, phone_number });
 
-    if ((users as any[]).length === 0) {
-      res.status(400).json({ error: "Invalid username or password" });
-      return;
+    if (!success) {
+      res.status(404).json({ message: "User not found" });
+      return; // Return after sending the response
     }
 
-    const user = (users as any[])[0];
+    // If the update is successful, find the user and generate a new token
+    const updatedUser = await User.findByUsername(username);
 
-    // Check the password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!updatedUser) {
+      res.status(404).json({ message: "User not found after update" });
+      return; // Return after sending the response
+    }
+
+    // If password was updated, verify the password again before issuing a new token
+    const isPasswordValid = await User.verifyPassword(password, updatedUser.password);
     if (!isPasswordValid) {
-      res.status(400).json({ error: "Invalid username or password" });
-      return;
+      res.status(400).json({ message: "Invalid password provided after update" });
+      return; // Return after sending the response
     }
 
-    // Generate a JWT token with the user's role
+    // Generate a new JWT token with updated user details
     const token = jwt.sign(
-      { user_id: user.user_id, username: user.username, role: user.role },
+      { user_id: updatedUser.user_id, username: updatedUser.username, role: updatedUser.role },
       JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // Return the token and user details
-    res.json({
-      message: "Login successful",
-      token,
-      user: {
-        user_id: user.user_id,       // Include the user ID
-        username: user.username,
-        role: user.role,
-      },
-    });
+    // Send response with updated message and new token
+    res.status(200).json({ message: "Profile updated successfully", token });
   } catch (error) {
-    console.error("Error logging in user:", error);
+    console.error("Error updating profile:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getUserDetails = async (req: Request, res: Response): Promise<void> => {
+  console.log("Received user_id:", req.params.user_id);
+  const { user_id } = req.params;
+
+  try {
+    const user = await User.findById(Number(user_id));
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.status(200).json({ message: "User details fetched successfully", user });
+  } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
 };
