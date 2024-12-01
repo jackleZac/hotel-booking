@@ -55,10 +55,10 @@ const User = {
   },
 
   async updateUserProfile(user_id: number, updatedData: Partial<User>): Promise<boolean> {
-    // Determine if the password needs to be updated
+    // Only hash the password if it's provided
     const newPassword = updatedData.password
-      ? await this.hashPassword(updatedData.password) // Hash the new password if provided
-      : null;
+      ? await this.hashPassword(updatedData.password)
+      : undefined; // No need to hash if no new password is provided
   
     const query = `
       UPDATE users
@@ -72,15 +72,15 @@ const User = {
   
     const [result] = await database.execute<ResultSetHeader>(query, [
       updatedData.username ?? null,
-      newPassword ?? null, // Update password only if it's provided
+      newPassword ?? null, // Only set the new hashed password if it's provided
       updatedData.email ?? null,
       updatedData.phone_number ?? null,
       user_id
     ]);
   
     return result.affectedRows > 0;
-  }
-  
+  } 
+   
 }  
 
 export default User;
