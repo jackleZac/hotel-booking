@@ -40,27 +40,36 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
   const { user_id, username, password, email, phone_number } = req.body;
 
   try {
+    // Check if the user exists before updating
+    const user = await User.findById(user_id);
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return; // Use return here to stop execution
+    }
+
     // Update user profile with the provided data
     const success = await User.updateUserProfile(user_id, { username, password, email, phone_number });
 
     if (!success) {
-      res.status(404).json({ message: "User not found" });
-      return; // Return after sending the response
+      res.status(400).json({ message: "Failed to update profile" });
+      return; // Use return here to stop execution
     }
 
-    // If the update is successful, find the user and generate a new token
+    // If the update is successful, find the updated user
     const updatedUser = await User.findByUsername(username);
 
     if (!updatedUser) {
       res.status(404).json({ message: "User not found after update" });
-      return; // Return after sending the response
+      return; // Use return here to stop execution
     }
 
-    // If password was updated, verify the password again before issuing a new token
-    const isPasswordValid = await User.verifyPassword(password, updatedUser.password);
-    if (!isPasswordValid) {
-      res.status(400).json({ message: "Invalid password provided after update" });
-      return; // Return after sending the response
+    // If password was updated, verify the new password
+    if (password) {
+      const isPasswordValid = await User.verifyPassword(password, updatedUser.password);
+      if (!isPasswordValid) {
+        res.status(400).json({ message: "Invalid password provided after update" });
+        return; // Use return here to stop execution
+      }
     }
 
     // Generate a new JWT token with updated user details
@@ -70,13 +79,14 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       { expiresIn: "1h" }
     );
 
-    // Send response with updated message and new token
-    res.status(200).json({ message: "Profile updated successfully", token });
+    // Send response with updated message, user data, and new token
+    res.status(200).json({ message: "Profile updated successfully", user: updatedUser, token });
   } catch (error) {
     console.error("Error updating profile:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 export const getUserDetails = async (req: Request, res: Response): Promise<void> => {
   console.log("Received user_id:", req.params.user_id);

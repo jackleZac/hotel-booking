@@ -55,21 +55,33 @@ const User = {
   },
 
   async updateUserProfile(user_id: number, updatedData: Partial<User>): Promise<boolean> {
+    // Determine if the password needs to be updated
+    const newPassword = updatedData.password
+      ? await this.hashPassword(updatedData.password) // Hash the new password if provided
+      : null;
+  
     const query = `
       UPDATE users
-      SET username = ?, password = ?, email = ?, phone_number = ?
+      SET 
+        username = COALESCE(?, username),
+        password = COALESCE(?, password),
+        email = COALESCE(?, email),
+        phone_number = COALESCE(?, phone_number)
       WHERE user_id = ?
     `;
+  
     const [result] = await database.execute<ResultSetHeader>(query, [
       updatedData.username ?? null,
-      updatedData.password ? await this.hashPassword(updatedData.password) : null,
+      newPassword ?? null, // Update password only if it's provided
       updatedData.email ?? null,
       updatedData.phone_number ?? null,
       user_id
     ]);
+  
     return result.affectedRows > 0;
   }
-};
+  
+}  
 
 export default User;
 
