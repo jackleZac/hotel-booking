@@ -7,7 +7,7 @@ interface Room {
   number: string;
   price: number;
   description: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
 }
 
 const Room = {
@@ -30,20 +30,43 @@ const Room = {
     }
   },
 
+  // Get a specific room by ID
+  getRoomById: async (roomId: number): Promise<Room | null> => {
+    try {
+      const [results] = await database.execute<RowDataPacket[]>(
+        "SELECT * FROM rooms WHERE room_id = ?",
+        [roomId]
+      );
+      
+      if (results.length > 0) {
+        const room = results[0];
+        return {
+          room_id: room.room_id,
+          type: room.type,
+          number: room.number,
+          price: room.price,
+          description: room.description,
+          imageUrl: room.imageUrl,
+        };
+      }
+
+      return null; // If no room found
+    } catch (err) {
+      throw new Error("Error retrieving room by ID: " + err);
+    }
+  },
+
   // Get only available rooms (not currently booked)
   getAvailableRooms: async (check_in_date: string, check_out_date: string): Promise<Room[]> => {
     try {
-      const [results] = await database.execute<RowDataPacket[]>(
-        `
+      const [results] = await database.execute<RowDataPacket[]>(`
         SELECT r.*
         FROM rooms r
         LEFT JOIN bookings b
         ON r.room_id = b.room_id
            AND (b.check_in_date < ? AND b.check_out_date > ?)
         WHERE b.room_id IS NULL;
-        `,
-        [check_out_date, check_in_date] // Ensures no overlapping bookings
-      );
+      `, [check_out_date, check_in_date]); // Ensures no overlapping bookings
 
       // Return the available rooms as objects
       return results.map((room) => ({
@@ -76,12 +99,40 @@ const Room = {
   },
 
   // Update room details
-  updateRoom: async (roomId: number, roomData: Partial<Room>): Promise<void> => {
+  updateRoom: async (roomId: number, roomData: Partial<Room>): Promise<Room | null> => {
     try {
-      await database.execute(
-        "UPDATE rooms SET ? WHERE room_id = ?",
-        [roomData, roomId]
-      );
+      // Ensure roomData is not empty
+      if (Object.keys(roomData).length === 0) {
+        throw new Error("No data to update.");
+      }
+
+      // Dynamically generate the SET clause based on roomData
+      const setClause = Object.keys(roomData)
+        .map((key) => `${key} = ?`)
+        .join(", ");
+
+      if (!setClause) {
+        throw new Error("Invalid room data for update.");
+      }
+
+      // Prepare values for the query
+      const values = [...Object.values(roomData), roomId];
+
+      // Construct the SQL query
+      const query = `UPDATE rooms SET ${setClause} WHERE room_id = ?`;
+
+      // Execute the query
+      await database.execute(query, values);
+
+      // After updating, fetch and return the updated room by ID
+      const updatedRoom = await Room.getRoomById(roomId);
+
+      if (!updatedRoom) {
+        throw new Error("Room not found after update.");
+      }
+
+      return updatedRoom; // Return the updated room
+
     } catch (err) {
       throw new Error("Error updating room: " + err);
     }
@@ -98,3 +149,4 @@ const Room = {
 };
 
 export default Room;
+

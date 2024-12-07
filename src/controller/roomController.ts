@@ -32,7 +32,11 @@ export const getAllRooms = async (
 
 // Create a new room
 export const createRoom = async (req: Request, res: Response): Promise<void> => {
-  const { type, number, price, description, imageUrl } = req.body;
+  const { type, number, price, description } = req.body;
+  const imageUrl = req.file ? `/uploads/${req.file.filename}` : null; // Get the image URL from req.file
+
+  console.log("File received:", req.file); // Log the file information
+  console.log("Body:", req.body); // Log the rest of the request body
 
   try {
     const newRoom = await Room.createRoom({
@@ -40,7 +44,7 @@ export const createRoom = async (req: Request, res: Response): Promise<void> => 
       number,
       price,
       description,
-      imageUrl,
+      imageUrl, // Pass the image URL to the room creation function
     });
     res
       .status(201)
@@ -51,14 +55,32 @@ export const createRoom = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-// Update a room
+
+// Update a room with an image upload
 export const updateRoom = async (req: Request, res: Response): Promise<void> => {
   const roomId = parseInt(req.params.id, 10);
   const updates = req.body;
 
+  console.log("File received:", req.file); // Log the file information
+  console.log("Body:", req.body); // Log the rest of the request body
+
+  // If there's a file, add the image URL to the updates
+  if (req.file) {
+    updates.imageUrl = `/uploads/${req.file.filename}`; // Save the image path
+  }
+
   try {
+    // Update the room details in the database
     await Room.updateRoom(roomId, updates);
-    res.status(200).json({ message: "Room updated successfully" });
+
+    // Fetch the updated room data
+    const updatedRoom = await Room.getRoomById(roomId); // Ensure you have this method implemented
+
+    // Respond with the updated room
+    res.status(200).json({
+      message: "Room updated successfully",
+      room: updatedRoom,
+    });
   } catch (error) {
     console.error("Error updating room:", error);
     res.status(500).json({ error: "Internal server error" });
