@@ -12,3 +12,22 @@ We run `yarn start` to start an HTTP server that runs on http://localhost:8080. 
 
 - [CodeSandbox — Docs](https://codesandbox.io/docs)
 - [CodeSandbox — Community](https://codesandbox.community)
+
+## Installation
+
+Using HTTPS:  
+```bash
+
+## Clone the Repository
+git clone https://github.com/jackleZac/myhotel.git
+
+## Navigate to the Project Directory
+cd hotelbooking
+
+## Install the Dependencies
+yarn install
+
+## Run the Development Server
+yarn start
+
+
