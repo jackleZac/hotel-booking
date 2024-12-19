@@ -19,7 +19,7 @@ Using HTTPS:
 ```bash
 
 ## Clone the Repository
-git clone https://github.com/jackleZac/myhotel.git
+git clone https://github.com/jackleZac/hotel-booking.git
 
 ## Navigate to the Project Directory
 cd hotelbooking
